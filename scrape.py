@@ -26,7 +26,6 @@ class StartASLSpider(scrapy.Spider):
         # Ensure Directories For Each Class Exists
         os.makedirs(os.path.join(os.curdir, 'output'), exist_ok=True)
         for (class_name, _) in table_rows:
-            print(class_name)
             folder_name = '{}'.format(class_name.replace(' ', '_'))
             os.makedirs(
                 os.path.join(os.curdir, 'output', folder_name), exist_ok=True
@@ -34,7 +33,6 @@ class StartASLSpider(scrapy.Spider):
 
         # Parse the Unit Pages
         for (class_name, unit_links) in table_rows:
-            print(class_name)
             for link in unit_links:
                 unit_name = link.css('::text').extract_first().replace(' ', '_')
                 unit_url = link.css('::attr(href)').extract_first()
