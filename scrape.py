@@ -1,5 +1,8 @@
+import io
 import os
 
+import html2text
+import lxml.etree as etree
 import scrapy
 import youtube_dl
 
@@ -51,39 +54,13 @@ class StartASLSpider(scrapy.Spider):
         self.logger.info("Processing {} - {}".format(class_name, unit_name))
 
         if not self._save_if_pdf(class_name, unit_name, response):
-            # Parse the Video Lists
-            video_lists = response.css('.dictionary.phrase-list')
-
-            # Skip Units with No Video Lists
-            if not video_lists:
-                self.logger.info("No Videos Found for {} - {}".format(
-                    class_name, unit_name))
-                return
-
-            self.logger.info("Downloading Videos For {} - {}".format(
-                class_name, unit_name))
-
-            # Ensure a Directory for the Unit Exists
             self._make_output_directory(class_name, unit_name)
+            self._save_lesson_file(class_name, unit_name, response)
+            self.logger.info("Downloading Lesson Videos")
+            self._save_lesson_videos(class_name, unit_name, response)
+            self.logger.info("Downloading Phrase & Vocabulary Videos")
+            self._save_video_lists(class_name, unit_name, response)
 
-            # Determine Which Video Lists Exist
-            if len(video_lists) == 1:
-                if '1' in class_name:
-                    # Some ASL1 Units Don't Have Phrases
-                    phrase_list = None
-                    vocab_list = video_lists[0]
-                else:
-                    # The Free ASL2 & ASL3 Units Don't Have Vocab Videos
-                    phrase_list = video_lists[0]
-                    vocab_list = None
-            else:
-                phrase_list = video_lists[0]
-                vocab_list = video_lists[1]
-
-            self._download_videos_from_list(
-                class_name, unit_name, 'phrases', phrase_list)
-            self._download_videos_from_list(
-                class_name, unit_name, 'vocab', vocab_list)
 
 
     @classmethod
@@ -102,23 +79,80 @@ class StartASLSpider(scrapy.Spider):
             )
             with open(pdf_path, 'wb') as pdf_file:
                 pdf_file.write(response.body)
-                self.logger.info('Downloaded PDF for {} - {}'.format(
-                    class_name, unit_name))
             return True
-        else:
-            return False
+        return False
 
 
     @classmethod
-    def _download_videos_from_list(cls, class_name, unit_name, video_type, video_list):
+    def _save_lesson_file(cls, class_name, unit_name, response):
+        lesson_html = response.css('.entry-content').extract_first()
+
+        # Remove the Phrase & Vocab Lists
+        html_parser = etree.HTMLParser(encoding='utf-8', recover=True)
+        html_tree = etree.parse(io.StringIO(lesson_html), html_parser)
+        for element in html_tree.xpath('//*[contains(@class,"phrase-list")]'):
+            element.getparent().remove(element)
+
+        # Convert the HTML Tree to Markdown
+        lesson_markdown = html2text.html2text(
+            etree.tostring(html_tree).decode('utf-8'))
+
+        # Save the Unit Lesson Text
+        lesson_path = os.path.join(os.curdir, cls.output_directory_name,
+                                   class_name, unit_name, 'lesson.md')
+        with open(lesson_path, 'w') as lesson_file:
+            lesson_file.write(lesson_markdown)
+
+
+    @classmethod
+    def _save_lesson_videos(cls, class_name, unit_name, response):
+        urls = response.css('video source::attr(src)').extract()
+        cls._download_videos(class_name, unit_name, 'lesson', urls)
+
+
+    @classmethod
+    def _save_video_lists(cls, class_name, unit_name, response):
+        video_lists = response.css('.dictionary.phrase-list')
+        if video_lists:
+            if len(video_lists) == 1:
+                if '1' in class_name:
+                    # Some ASL1 Units Don't Have Phrases
+                    phrase_list = None
+                    vocab_list = video_lists[0]
+                else:
+                    # The Free ASL2 & ASL3 Units Don't Have Vocab Videos
+                    phrase_list = video_lists[0]
+                    vocab_list = None
+            else:
+                phrase_list = video_lists[0]
+                vocab_list = video_lists[1]
+
+            cls._download_videos_from_list(
+                class_name, unit_name, 'phrases', phrase_list)
+            cls._download_videos_from_list(
+                class_name, unit_name, 'vocab', vocab_list, autonumber=False)
+
+
+    @classmethod
+    def _download_videos_from_list(cls, class_name, unit_name, video_type, video_list, autonumber=True):
         if video_list is not None:
             urls = video_list.css('.phrase a::attr(current-url)').extract()
-            if urls:
-                video_dir = cls._make_output_directory(
-                    class_name, unit_name, video_type)
-                youtubedl_options = {
-                    'outtmpl' : os.path.join(video_dir, cls.video_name_template),
-                    'quiet': cls.disable_youtubedl_output,
-                }
-                with youtube_dl.YoutubeDL(youtubedl_options) as downloader:
-                    downloader.download(urls)
+            cls._download_videos(
+                class_name, unit_name, video_type, urls, autonumber)
+
+
+    @classmethod
+    def _download_videos(cls, class_name, unit_name, video_type, urls, autonumber=True):
+        if urls:
+            video_dir = cls._make_output_directory(
+                class_name, unit_name, video_type)
+            if autonumber:
+                name_template = '{}-{}'.format('%(autonumber)d', cls.video_name_template)
+            else:
+                name_template = cls.video_name_template
+            youtubedl_options = {
+                'outtmpl' : os.path.join(video_dir, name_template),
+                'quiet': cls.disable_youtubedl_output,
+            }
+            with youtube_dl.YoutubeDL(youtubedl_options) as downloader:
+                downloader.download(urls)
