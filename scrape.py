@@ -64,7 +64,7 @@ class StartASLSpider(scrapy.Spider):
             video_lists = response.css('.dictionary.phrase-list')
 
             # Skip Units with No Video Lists
-            if len(video_lists) == 0:
+            if not video_lists:
                 return
 
             # Ensure a Directory for the Unit Exists
@@ -81,7 +81,7 @@ class StartASLSpider(scrapy.Spider):
 
             # Download the Phrase Videos
             phrase_video_urls = phrase_list.css('.phrase a::attr(current-url)').extract()
-            if len(phrase_video_urls) > 0:
+            if phrase_video_urls:
                 phrase_dir = os.path.join(
                     os.curdir, 'output', class_name, unit_name, 'phrases')
                 os.makedirs(phrase_dir, exist_ok=True)
@@ -95,7 +95,7 @@ class StartASLSpider(scrapy.Spider):
             # Download the Vocab Videos
             if vocab_list is not None:
                 vocab_video_urls = vocab_list.css('.phrase a::attr(current-url)').extract()
-                if len(vocab_video_urls) > 0:
+                if vocab_video_urls:
                     vocab_dir = os.path.join(
                         os.curdir, 'output', class_name, unit_name, 'vocab')
                     os.makedirs(vocab_dir, exist_ok=True)
@@ -104,4 +104,3 @@ class StartASLSpider(scrapy.Spider):
                     }
                     with youtube_dl.YoutubeDL(vocab_yt_options) as ydl:
                         ydl.download(vocab_video_urls)
-
