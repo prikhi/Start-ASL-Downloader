@@ -151,7 +151,7 @@ class StartASLSpider(scrapy.Spider):
             video_dir = cls._make_output_directory(
                 class_name, unit_name, video_type)
             if autonumber:
-                name_template = '{}-{}'.format('%(autonumber)d', cls.video_name_template)
+                name_template = '{}-{}'.format('%(autonumber)02d', cls.video_name_template)
             else:
                 name_template = cls.video_name_template
             youtubedl_options = {
