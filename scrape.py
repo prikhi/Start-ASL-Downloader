@@ -10,6 +10,7 @@ class StartASLSpider(scrapy.Spider):
     name = "StartASL"
     start_urls = ['https://www.startasl.com/learn-sign-language-asl.html']
     video_name_template = '%(title)s.%(ext)s'
+    output_directory_name = 'output'
 
 
     def parse(self, response):
@@ -26,12 +27,9 @@ class StartASLSpider(scrapy.Spider):
         ]
 
         # Ensure Directories For Each Class Exists
-        os.makedirs(os.path.join(os.curdir, 'output'), exist_ok=True)
+        self._make_output_directory()
         for (class_name, _) in table_rows:
-            folder_name = '{}'.format(class_name.replace(' ', '_'))
-            os.makedirs(
-                os.path.join(os.curdir, 'output', folder_name), exist_ok=True
-            )
+            self._make_output_directory(class_name)
 
         # Parse the Unit Pages
         for (class_name, unit_links) in table_rows:
@@ -56,7 +54,7 @@ class StartASLSpider(scrapy.Spider):
         if is_pdf:
             # Save the PDF
             pdf_path = os.path.join(
-                os.curdir, 'output', class_name,
+                os.curdir, self.output_directory_name, class_name,
                 '{}{}{}'.format(unit_name, os.extsep, 'pdf')
             )
             with open(pdf_path, 'wb') as pdf_file:
@@ -73,9 +71,7 @@ class StartASLSpider(scrapy.Spider):
                 class_name, unit_name))
 
             # Ensure a Directory for the Unit Exists
-            os.makedirs(
-                os.path.join(os.curdir, 'output', class_name, unit_name),
-                exist_ok=True)
+            self._make_output_directory(class_name, unit_name)
 
             # Determine Which Video Lists Exist Exists
             if len(video_lists) == 1:
@@ -95,9 +91,8 @@ class StartASLSpider(scrapy.Spider):
             if phrase_list is not None:
                 phrase_video_urls = phrase_list.css('.phrase a::attr(current-url)').extract()
                 if phrase_video_urls:
-                    phrase_dir = os.path.join(
-                        os.curdir, 'output', class_name, unit_name, 'phrases')
-                    os.makedirs(phrase_dir, exist_ok=True)
+                    phrase_dir = self._make_output_directory(
+                        class_name, unit_name, 'phrases')
                     phrase_yt_options = {
                         'outtmpl': os.path.join(phrase_dir, self.video_name_template),
                         'quiet': True,
@@ -110,12 +105,17 @@ class StartASLSpider(scrapy.Spider):
             if vocab_list is not None:
                 vocab_video_urls = vocab_list.css('.phrase a::attr(current-url)').extract()
                 if vocab_video_urls:
-                    vocab_dir = os.path.join(
-                        os.curdir, 'output', class_name, unit_name, 'vocab')
-                    os.makedirs(vocab_dir, exist_ok=True)
+                    vocab_dir = self._make_output_directory(
+                        class_name, unit_name, 'vocab')
                     vocab_yt_options = {
                         'outtmpl': os.path.join(vocab_dir, self.video_name_template),
                         'quiet': True,
                     }
                     with youtube_dl.YoutubeDL(vocab_yt_options) as ydl:
                         ydl.download(vocab_video_urls)
+
+    @classmethod
+    def _make_output_directory(cls, *args):
+        path = os.path.join(os.curdir, cls.output_directory_name, *args)
+        os.makedirs(path, exist_ok=True)
+        return path
