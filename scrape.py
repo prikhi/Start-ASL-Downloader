@@ -5,6 +5,8 @@ import youtube_dl
 
 
 class StartASLSpider(scrapy.Spider):
+    """Crawl the Free ASL 1, 2, & 3 Classes at StartASL.com For Videos."""
+
     name = "StartASL"
     start_urls = ['https://www.startasl.com/learn-sign-language-asl.html']
     video_name_template = '%(title)s.%(ext)s'
@@ -43,6 +45,7 @@ class StartASLSpider(scrapy.Spider):
 
 
     def parse_unit(self, response):
+        """Parse a Class' Unit Page & Download any Phrase or Vocab Videos."""
         class_name = response.meta['class_name']
         unit_name = response.meta['unit_name']
 
