@@ -11,6 +11,7 @@ class StartASLSpider(scrapy.Spider):
     start_urls = ['https://www.startasl.com/learn-sign-language-asl.html']
     video_name_template = '%(title)s.%(ext)s'
     output_directory_name = 'output'
+    disable_youtubedl_output = True
 
 
     def parse(self, response):
@@ -73,7 +74,7 @@ class StartASLSpider(scrapy.Spider):
             # Ensure a Directory for the Unit Exists
             self._make_output_directory(class_name, unit_name)
 
-            # Determine Which Video Lists Exist Exists
+            # Determine Which Video Lists Exist
             if len(video_lists) == 1:
                 if '1' in class_name:
                     # Some ASL1 Units Don't Have Phrases
@@ -87,35 +88,29 @@ class StartASLSpider(scrapy.Spider):
                 phrase_list = video_lists[0]
                 vocab_list = video_lists[1]
 
-            # Download the Phrase Videos
-            if phrase_list is not None:
-                phrase_video_urls = phrase_list.css('.phrase a::attr(current-url)').extract()
-                if phrase_video_urls:
-                    phrase_dir = self._make_output_directory(
-                        class_name, unit_name, 'phrases')
-                    phrase_yt_options = {
-                        'outtmpl': os.path.join(phrase_dir, self.video_name_template),
-                        'quiet': True,
-                    }
-                    with youtube_dl.YoutubeDL(phrase_yt_options) as ydl:
-                        ydl.download(phrase_video_urls)
+            self._download_videos_from_list(
+                class_name, unit_name, 'phrases', phrase_list)
+            self._download_videos_from_list(
+                class_name, unit_name, 'vocab', vocab_list)
 
-
-            # Download the Vocab Videos
-            if vocab_list is not None:
-                vocab_video_urls = vocab_list.css('.phrase a::attr(current-url)').extract()
-                if vocab_video_urls:
-                    vocab_dir = self._make_output_directory(
-                        class_name, unit_name, 'vocab')
-                    vocab_yt_options = {
-                        'outtmpl': os.path.join(vocab_dir, self.video_name_template),
-                        'quiet': True,
-                    }
-                    with youtube_dl.YoutubeDL(vocab_yt_options) as ydl:
-                        ydl.download(vocab_video_urls)
 
     @classmethod
     def _make_output_directory(cls, *args):
         path = os.path.join(os.curdir, cls.output_directory_name, *args)
         os.makedirs(path, exist_ok=True)
         return path
+
+
+    @classmethod
+    def _download_videos_from_list(cls, class_name, unit_name, video_type, video_list):
+        if video_list is not None:
+            urls = video_list.css('.phrase a::attr(current-url)').extract()
+            if urls:
+                video_dir = cls._make_output_directory(
+                    class_name, unit_name, video_type)
+                youtubedl_options = {
+                    'outtmpl' : os.path.join(video_dir, cls.video_name_template),
+                    'quiet': cls.disable_youtubedl_output,
+                }
+                with youtube_dl.YoutubeDL(youtubedl_options) as downloader:
+                    downloader.download(urls)
