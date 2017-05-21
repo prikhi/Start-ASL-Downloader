@@ -48,7 +48,7 @@ class StartASLSpider(scrapy.Spider):
         class_name = response.meta['class_name']
         unit_name = response.meta['unit_name']
 
-        self.logger.info("Parsing {} - {}".format(class_name, unit_name))
+        self.logger.info("Processing {} - {}".format(class_name, unit_name))
 
         if not self._save_if_pdf(class_name, unit_name, response):
             # Parse the Video Lists
@@ -56,6 +56,8 @@ class StartASLSpider(scrapy.Spider):
 
             # Skip Units with No Video Lists
             if not video_lists:
+                self.logger.info("No Videos Found for {} - {}".format(
+                    class_name, unit_name))
                 return
 
             self.logger.info("Downloading Videos For {} - {}".format(
