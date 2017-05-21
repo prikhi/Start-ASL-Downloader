@@ -19,31 +19,16 @@ class StartASLSpider(scrapy.Spider):
 
     def parse(self, response):
         """Parse the Contents Page & Dispatch Requests For Each Unit."""
-        table_rows = response.css('.entry-content table tr')
+        class_names_and_unit_links = self._parse_class_table(response)
 
-        # Remove the Header & Fingerspelling Rows
-        table_rows = table_rows[1:-1]
-
-        # Split the Class & Units
-        table_rows = [
-            (row.css('td')[0].css('::text').extract_first().replace(' ', '_'),
-             row.css('td a')) for row in table_rows
-        ]
-
-        # Ensure Directories For Each Class Exists
         self._make_output_directory()
-        for (class_name, _) in table_rows:
+        for (class_name, _) in class_names_and_unit_links:
             self._make_output_directory(class_name)
 
         # Parse the Unit Pages
-        for (class_name, unit_links) in table_rows:
+        for (class_name, unit_links) in class_names_and_unit_links:
             for link in unit_links:
-                unit_name = link.css('::text').extract_first().replace(' ', '_')
-                unit_url = link.css('::attr(href)').extract_first()
-                response = scrapy.Request(unit_url, callback=self.parse_unit)
-                response.meta['class_name'] = class_name
-                response.meta['unit_name'] = unit_name
-                yield response
+                yield from self._follow_unit_link(class_name, link)
 
 
     def parse_unit(self, response):
@@ -62,12 +47,31 @@ class StartASLSpider(scrapy.Spider):
             self._save_video_lists(class_name, unit_name, response)
 
 
+    @classmethod
+    def _parse_class_table(cls, response):
+        table_rows = response.css('.entry-content table tr')
+        table_rows = table_rows[1:-1]
+        table_rows = [
+            (row.css('td')[0].css('::text').extract_first().replace(' ', '_'),
+             row.css('td a')) for row in table_rows
+        ]
+        return table_rows
+
 
     @classmethod
     def _make_output_directory(cls, *args):
         path = os.path.join(os.curdir, cls.output_directory_name, *args)
         os.makedirs(path, exist_ok=True)
         return path
+
+
+    def _follow_unit_link(self, class_name, link):
+        unit_name = link.css('::text').extract_first().replace(' ', '_')
+        unit_url = link.css('::attr(href)').extract_first()
+        response = scrapy.Request(unit_url, callback=self.parse_unit)
+        response.meta['class_name'] = class_name
+        response.meta['unit_name'] = unit_name
+        yield response
 
 
     @classmethod
