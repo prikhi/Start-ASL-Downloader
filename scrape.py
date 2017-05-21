@@ -72,24 +72,32 @@ class StartASLSpider(scrapy.Spider):
                 os.path.join(os.curdir, 'output', class_name, unit_name),
                 exist_ok=True)
 
+            # Determine Which Video Lists Exist Exists
             if len(video_lists) == 1:
-                phrase_list = video_lists[0]
-                vocab_list = None
+                if '1' in class_name:
+                    # Some ASL1 Units Don't Have Phrases
+                    phrase_list = None
+                    vocab_list = video_lists[0]
+                else:
+                    # The Free ASL2 & ASL3 Units Don't Have Vocab Videos
+                    phrase_list = video_lists[0]
+                    vocab_list = None
             else:
                 phrase_list = video_lists[0]
                 vocab_list = video_lists[1]
 
             # Download the Phrase Videos
-            phrase_video_urls = phrase_list.css('.phrase a::attr(current-url)').extract()
-            if phrase_video_urls:
-                phrase_dir = os.path.join(
-                    os.curdir, 'output', class_name, unit_name, 'phrases')
-                os.makedirs(phrase_dir, exist_ok=True)
-                phrase_yt_options = {
-                    'outtmpl': os.path.join(phrase_dir, self.video_name_template)
-                }
-                with youtube_dl.YoutubeDL(phrase_yt_options) as ydl:
-                    ydl.download(phrase_video_urls)
+            if phrase_list is not None:
+                phrase_video_urls = phrase_list.css('.phrase a::attr(current-url)').extract()
+                if phrase_video_urls:
+                    phrase_dir = os.path.join(
+                        os.curdir, 'output', class_name, unit_name, 'phrases')
+                    os.makedirs(phrase_dir, exist_ok=True)
+                    phrase_yt_options = {
+                        'outtmpl': os.path.join(phrase_dir, self.video_name_template)
+                    }
+                    with youtube_dl.YoutubeDL(phrase_yt_options) as ydl:
+                        ydl.download(phrase_video_urls)
 
 
             # Download the Vocab Videos
