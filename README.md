@@ -21,7 +21,7 @@ source Env/bin/activate
 pip install -r requirements.txt
 
 # Run the Scraper
-scrapy runspider scrape.py
+scrapy runspider scrape.py -L INFO
 ```
 
 

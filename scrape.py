@@ -49,6 +49,8 @@ class StartASLSpider(scrapy.Spider):
         class_name = response.meta['class_name']
         unit_name = response.meta['unit_name']
 
+        self.logger.info("Parsing {} - {}".format(class_name, unit_name))
+
         is_pdf = response.url.split(os.extsep)[-1].lower() == 'pdf'
 
         if is_pdf:
@@ -66,6 +68,9 @@ class StartASLSpider(scrapy.Spider):
             # Skip Units with No Video Lists
             if not video_lists:
                 return
+
+            self.logger.info("Downloading Videos For {} - {}".format(
+                class_name, unit_name))
 
             # Ensure a Directory for the Unit Exists
             os.makedirs(
@@ -94,7 +99,8 @@ class StartASLSpider(scrapy.Spider):
                         os.curdir, 'output', class_name, unit_name, 'phrases')
                     os.makedirs(phrase_dir, exist_ok=True)
                     phrase_yt_options = {
-                        'outtmpl': os.path.join(phrase_dir, self.video_name_template)
+                        'outtmpl': os.path.join(phrase_dir, self.video_name_template),
+                        'quiet': True,
                     }
                     with youtube_dl.YoutubeDL(phrase_yt_options) as ydl:
                         ydl.download(phrase_video_urls)
@@ -108,7 +114,8 @@ class StartASLSpider(scrapy.Spider):
                         os.curdir, 'output', class_name, unit_name, 'vocab')
                     os.makedirs(vocab_dir, exist_ok=True)
                     vocab_yt_options = {
-                        'outtmpl': os.path.join(vocab_dir, self.video_name_template)
+                        'outtmpl': os.path.join(vocab_dir, self.video_name_template),
+                        'quiet': True,
                     }
                     with youtube_dl.YoutubeDL(vocab_yt_options) as ydl:
                         ydl.download(vocab_video_urls)
