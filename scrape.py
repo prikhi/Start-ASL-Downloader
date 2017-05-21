@@ -50,17 +50,7 @@ class StartASLSpider(scrapy.Spider):
 
         self.logger.info("Parsing {} - {}".format(class_name, unit_name))
 
-        is_pdf = response.url.split(os.extsep)[-1].lower() == 'pdf'
-
-        if is_pdf:
-            # Save the PDF
-            pdf_path = os.path.join(
-                os.curdir, self.output_directory_name, class_name,
-                '{}{}{}'.format(unit_name, os.extsep, 'pdf')
-            )
-            with open(pdf_path, 'wb') as pdf_file:
-                pdf_file.write(response.body)
-        else:
+        if not self._save_if_pdf(class_name, unit_name, response):
             # Parse the Video Lists
             video_lists = response.css('.dictionary.phrase-list')
 
@@ -99,6 +89,22 @@ class StartASLSpider(scrapy.Spider):
         path = os.path.join(os.curdir, cls.output_directory_name, *args)
         os.makedirs(path, exist_ok=True)
         return path
+
+
+    @classmethod
+    def _save_if_pdf(cls, class_name, unit_name, response):
+        if response.url.split(os.extsep)[-1].lower() == 'pdf':
+            pdf_path = os.path.join(
+                os.curdir, cls.output_directory_name, class_name,
+                '{}{}{}'.format(unit_name, os.extsep, 'pdf')
+            )
+            with open(pdf_path, 'wb') as pdf_file:
+                pdf_file.write(response.body)
+                self.logger.info('Downloaded PDF for {} - {}'.format(
+                    class_name, unit_name))
+            return True
+        else:
+            return False
 
 
     @classmethod
